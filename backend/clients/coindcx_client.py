@@ -1,34 +1,33 @@
-import asyncio, aiohttp, json, logging, os
-logger = logging.getLogger("coindcx_client")
+import asyncio
+import json
+import websockets
 
-COINDCX_WS = os.getenv("COINDCX_WS", "wss://stream.coindcx.com/market")
-SYMBOLS = os.getenv("COINDCX_SYMBOLS", "BTCINR,ETHINR").split(",")
+COINDCX_WS_URL = "wss://stream.coindcx.com"
 
-class CoinDCXClient:
-    def __init__(self, manager):
-        self.manager = manager
-        self.session = None
-        self.ws = None
-        self.running = False
+async def start_coindcx_listener(broadcast_callback):
+    """
+    Connects to CoinDCX WebSocket and streams all ticker data.
+    """
+    async with websockets.connect(COINDCX_WS_URL, ping_interval=None) as ws:
+        print("✅ Connected to CoinDCX WebSocket feed")
 
-    async def start(self):
-        self.running = True
-        self.session = aiohttp.ClientSession()
-        while self.running:
+        # Subscribe to all ticker updates
+        subscribe_msg = {
+            "type": "subscribe",
+            "channels": [{"name": "tickers"}]
+        }
+        await ws.send(json.dumps(subscribe_msg))
+
+        while True:
             try:
-                async with self.session.ws_connect(COINDCX_WS) as ws:
-                    sub = {"type": "subscribe", "symbols": SYMBOLS}
-                    await ws.send_json(sub)
-                    async for msg in ws:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            data = json.loads(msg.data)
-                            out = {"type": "coindcx", "source": "coindcx", "tick": data}
-                            await self.manager.broadcast(out)
-            except Exception as e:
-                logger.exception("CoinDCX reconnecting: %s", e)
+                message = await ws.recv()
+                data = json.loads(message)
+                # Forward received data to all connected frontend clients
+                await broadcast_callback(data)
+            except websockets.ConnectionClosed:
+                print("⚠️ Connection closed, retrying in 5 seconds...")
                 await asyncio.sleep(5)
-
-    async def stop(self):
-        self.running = False
-        if self.ws: await self.ws.close()
-        if self.session: await self.session.close()
+                return await start_coindcx_listener(broadcast_callback)
+            except Exception as e:
+                print(f"❌ Error in CoinDCX listener: {e}")
+                await asyncio.sleep(5)
