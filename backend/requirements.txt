@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+PyJWT>=2.6.0
+python-dotenv
+aiohttp
+pandas
+numpy
+psycopg2-binary
+redis
+sqlalchemy
+scikit-learn
+xgboost
+joblib
+requests
+kiteconnect

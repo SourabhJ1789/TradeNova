@@ -1,0 +1,6 @@
+TradeNova Cloud Deploy Guide
+---------------------------
+This file contains illustrated step-by-step instructions to deploy backend to Render and frontend to Vercel,
+including where to paste environment variables and example values.
+
+(If you want a PDF later I can create and attach it.)
